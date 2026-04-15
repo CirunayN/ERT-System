@@ -27,17 +27,22 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Incidents CRUD
+    Route::get('/history', [IncidentController::class, 'history'])->name('incidents.history');
     Route::resource('incidents', IncidentController::class);
     Route::post('/incidents/{incident}/assign', [IncidentController::class, 'assignTeam'])
         ->name('incidents.assign')->middleware('role:dispatcher,admin');
+    Route::post('/incidents/{incident}/status', [IncidentController::class, 'updateStatus'])
+        ->name('incidents.updateStatus');
 
-    // Team Management (Admin)
-    Route::middleware('role:admin')->group(function () {
+    // Team Management (Admin and Dispatcher)
+    Route::middleware('role:admin,dispatcher')->group(function () {
         Route::resource('teams', TeamController::class);
         Route::post('/teams/{team}/responders', [TeamController::class, 'addResponder'])->name('teams.addResponder');
-        Route::delete('/teams/{team}/responders/{responder}', [TeamController::class, 'removeResponder'])->name('teams.removeResponder');
+        Route::delete('/teams/{team}/responders/{member}', [TeamController::class, 'removeResponder'])->name('teams.removeResponder');
+    });
 
-        // User Management (Admin)
+    // User Management (Admin)
+    Route::middleware('role:admin')->group(function () {
         Route::get('/admin/users', [AdminUserController::class, 'index'])->name('admin.users');
         Route::put('/admin/users/{user}/role', [AdminUserController::class, 'updateRole'])->name('admin.users.updateRole');
         Route::delete('/admin/users/{user}', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');

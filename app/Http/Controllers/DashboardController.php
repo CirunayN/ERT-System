@@ -14,26 +14,42 @@ class DashboardController extends Controller
 
         if ($user->isCitizen()) {
             $query = Incident::where('user_id', $user->id);
+        } elseif ($user->isResponder() && $user->team_id) {
+            $query = Incident::where('emergency_type', $user->team->team_type);
         } else {
             $query = Incident::query();
         }
 
-        $totalIncidents = (clone $query)->count();
-        $pendingCount = (clone $query)->where('status', 'Pending')->count();
-        $criticalCount = (clone $query)->where('danger_level', 'Critical')->count();
-        $resolvedCount = (clone $query)->where('status', 'Resolved')->count();
-        $inProgressCount = (clone $query)->where('status', 'In Progress')->count();
-        $recentIncidents = (clone $query)->latest()->take(5)->get();
+        // Active query filters out completed incidents
+        $activeQuery = clone $query;
+        $activeQuery->where('status', '!=', 'Completed');
+
+        $totalIncidents = $activeQuery->count();
+        $pendingCount = (clone $activeQuery)->where('status', 'Pending')->count();
+        $criticalCount = (clone $activeQuery)->where('danger_level', 'Critical')->count();
+        $resolvedCount = (clone $query)->where('status', 'Completed')->count();
+        $inProgressCount = (clone $activeQuery)->where('status', 'In Progress')->count();
+        $recentIncidents = (clone $activeQuery)->latest()->take(5)->get();
 
         // Map markers — incidents with coordinates
-        $mapIncidents = (clone $query)->whereNotNull('latitude')->whereNotNull('longitude')->get();
+        $mapIncidents = (clone $activeQuery)->whereNotNull('latitude')->whereNotNull('longitude')->get();
 
-        // Activity logs
-        $activityLogs = ActivityLog::with('user')->latest()->take(15)->get();
+        // Activity logs - hide for citizens and responders
+        $activityLogs = collect();
+        $responderNotifications = collect();
+        
+        if ($user->isAdmin() || $user->isDispatcher()) {
+            $activityLogs = ActivityLog::with('user')->latest()->take(15)->get();
+        } elseif ($user->isResponder() && $user->team) {
+            $responderNotifications = ActivityLog::where('description', 'like', "%{$user->team->team_name}%")
+                ->orWhere('description', 'like', "%{$user->team->team_type}%")
+                ->orWhere('description', 'like', "%New incident reported%")
+                ->latest()->take(10)->get();
+        }
 
         return view('dashboard', compact(
             'totalIncidents', 'pendingCount', 'criticalCount', 'resolvedCount',
-            'inProgressCount', 'recentIncidents', 'mapIncidents', 'activityLogs'
+            'inProgressCount', 'recentIncidents', 'mapIncidents', 'activityLogs', 'responderNotifications'
         ));
     }
 }

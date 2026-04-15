@@ -17,6 +17,8 @@ class IncidentController extends Controller
         $user = auth()->user();
         if ($user->isCitizen()) {
             $incidents = Incident::where('user_id', $user->id)->latest()->get();
+        } elseif ($user->isResponder() && $user->team_id) {
+            $incidents = Incident::where('emergency_type', $user->team->team_type)->latest()->get();
         } else {
             $incidents = Incident::latest()->get();
         }
@@ -24,9 +26,26 @@ class IncidentController extends Controller
         $criticalCount = $incidents->where('danger_level', 'Critical')->count();
         $pendingCount = $incidents->where('status', 'Pending')->count();
         $inProgressCount = $incidents->where('status', 'In Progress')->count();
-        $resolvedCount = $incidents->where('status', 'Resolved')->count();
+        $resolvedCount = Incident::where('status', 'Completed')->count();
+
+        // active incidents only for index module
+        $incidents = $incidents->where('status', '!=', 'Completed')->values();
 
         return view('incidents.index', compact('incidents', 'criticalCount', 'pendingCount', 'inProgressCount', 'resolvedCount'));
+    }
+
+    public function history()
+    {
+        $user = auth()->user();
+        if ($user->isCitizen()) {
+            $incidents = Incident::where('user_id', $user->id)->where('status', 'Completed')->latest()->get();
+        } elseif ($user->isResponder() && $user->team_id) {
+            $incidents = Incident::where('emergency_type', $user->team->team_type)->where('status', 'Completed')->latest()->get();
+        } else {
+            $incidents = Incident::where('status', 'Completed')->latest()->get();
+        }
+
+        return view('incidents.history', compact('incidents'));
     }
 
     public function create()
@@ -88,29 +107,38 @@ class IncidentController extends Controller
             abort(403);
         }
 
-        $validated = $request->validate([
-            'reporter_name' => 'required|string|max:255',
-            'contact_number' => 'nullable|string|max:20',
-            'location' => 'required|string|max:255',
-            'latitude' => 'nullable|numeric',
-            'longitude' => 'nullable|numeric',
-            'emergency_type' => 'required|string',
-            'danger_level' => 'required|string',
-            'status' => 'required|string',
-            'incident_date' => 'nullable|date',
-            'description' => 'required|string',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
-        ]);
+        $canEditFully = auth()->user()->isAdmin() || $incident->user_id === auth()->id();
 
-        if ($request->hasFile('image')) {
-            if ($incident->image_path) {
-                Storage::disk('public')->delete($incident->image_path);
+        if ($canEditFully) {
+            $validated = $request->validate([
+                'reporter_name' => 'required|string|max:255',
+                'contact_number' => 'nullable|string|max:20',
+                'location' => 'required|string|max:255',
+                'latitude' => 'nullable|numeric',
+                'longitude' => 'nullable|numeric',
+                'emergency_type' => 'required|string',
+                'danger_level' => 'required|string',
+                'status' => 'required|string',
+                'incident_date' => 'nullable|date',
+                'description' => 'required|string',
+                'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+            ]);
+
+            if ($request->hasFile('image')) {
+                if ($incident->image_path) {
+                    Storage::disk('public')->delete($incident->image_path);
+                }
+                $validated['image_path'] = $request->file('image')->store('incidents', 'public');
             }
-            $validated['image_path'] = $request->file('image')->store('incidents', 'public');
-        }
 
-        unset($validated['image']);
-        $incident->update($validated);
+            unset($validated['image']);
+            $incident->update($validated);
+        } else {
+            $validated = $request->validate([
+                'status' => 'required|string',
+            ]);
+            $incident->update(['status' => $validated['status']]);
+        }
 
         ActivityLog::log('incident_updated', "Incident #{$incident->id} updated at {$incident->location}", 'bi-pencil-square', 'info');
 
@@ -123,8 +151,8 @@ class IncidentController extends Controller
         if ($user->isDispatcher()) {
             abort(403, 'Dispatchers cannot delete incident records.');
         }
-        if ($user->isCitizen() && $incident->user_id !== $user->id) {
-            abort(403);
+        if ($user->isCitizen()) {
+            abort(403, 'Citizens cannot delete incident records. They must be saved in the system.');
         }
 
         if ($incident->image_path) {
@@ -158,5 +186,34 @@ class IncidentController extends Controller
         ActivityLog::log('team_dispatched', "{$team->team_name} dispatched to Incident #{$incident->id} at {$incident->location}", 'bi-send-fill', 'success');
 
         return redirect()->route('incidents.show', $incident)->with('success', 'Team assigned successfully!');
+    }
+
+    public function updateStatus(Request $request, Incident $incident)
+    {
+        $request->validate([
+            'status' => 'required|in:Pending,In Progress,En Route,On Scene,Completed'
+        ]);
+
+        $incident->update(['status' => $request->status]);
+
+        // Specific styling for ActivityLog based on new Responder flow
+        $msg = "Incident #{$incident->id} {$incident->emergency_type} status updated to {$request->status}";
+        $icon = 'bi-info-circle';
+        
+        switch($request->status) {
+            case 'En Route': $icon = 'bi-truck'; break;
+            case 'On Scene': $icon = 'bi-geo-alt-fill'; break;
+            case 'Completed': $icon = 'bi-check-circle-fill'; break;
+            case 'In Progress': $icon = 'bi-arrow-repeat'; break;
+        }
+
+        if (auth()->user()->isResponder() && $request->status == 'In Progress') {
+             $msg = "Responder \"".auth()->user()->name."\" accepted Incident #{$incident->id}";
+             $icon = 'bi-person-check-fill';
+        }
+
+        ActivityLog::log('status_update', $msg, $icon, 'primary');
+
+        return redirect()->back()->with('success', 'Status updated successfully!');
     }
 }

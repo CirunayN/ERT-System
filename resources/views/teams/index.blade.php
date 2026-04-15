@@ -25,7 +25,7 @@
                     </span>
                 </div>
                 <div class="d-flex gap-4 mb-3 text-muted">
-                    <div><i class="bi bi-people me-1"></i> <strong>{{ $team->responders_count }}</strong> Responders</div>
+                    <div><i class="bi bi-people me-1"></i> <strong>{{ $team->members_count }}</strong> Responders</div>
                     <div><i class="bi bi-clipboard-check me-1"></i> <strong>{{ $team->assignments_count }}</strong> Assignments</div>
                 </div>
                 <div class="d-flex gap-2">

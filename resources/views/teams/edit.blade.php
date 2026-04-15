@@ -43,19 +43,19 @@
         <!-- Responders List -->
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                <h6 class="fw-bold mb-0"><i class="bi bi-person-badge me-2"></i>Responders ({{ $team->responders->count() }})</h6>
+                <h6 class="fw-bold mb-0"><i class="bi bi-person-badge me-2"></i>Responders ({{ $team->members->count() }})</h6>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
-                        <thead class="table-light"><tr><th>Name</th><th>Phone</th><th class="text-end">Action</th></tr></thead>
+                        <thead class="table-light"><tr><th>Name</th><th>Email / Phone</th><th class="text-end">Action</th></tr></thead>
                         <tbody>
-                            @forelse($team->responders as $r)
+                            @forelse($team->members as $member)
                             <tr>
-                                <td class="fw-semibold">{{ $r->name }}</td>
-                                <td class="text-muted">{{ $r->phone_number ?? '—' }}</td>
+                                <td class="fw-semibold">{{ $member->name }} <br><small class="text-muted text-uppercase" style="font-size:0.7em;">{{ $member->role }}</small></td>
+                                <td class="text-muted">{{ $member->email }} <br><small>{{ $member->phone_number ?? '—' }}</small></td>
                                 <td class="text-end">
-                                    <form action="{{ route('teams.removeResponder', [$team, $r]) }}" method="POST" onsubmit="return confirm('Remove this responder?')">
+                                    <form action="{{ route('teams.removeResponder', [$team, $member]) }}" method="POST" onsubmit="return confirm('Remove this responder?')">
                                         @csrf @method('DELETE')
                                         <button class="btn btn-sm btn-outline-danger"><i class="bi bi-person-dash"></i></button>
                                     </form>
@@ -79,14 +79,19 @@
                 <form action="{{ route('teams.addResponder', $team) }}" method="POST">
                     @csrf
                     <div class="row g-2">
-                        <div class="col-md-5">
-                            <input type="text" name="name" class="form-control" placeholder="Responder name" required>
-                        </div>
-                        <div class="col-md-4">
-                            <input type="text" name="phone_number" class="form-control" placeholder="Phone (optional)">
+                        <div class="col-md-9">
+                            <select name="user_id" class="form-select" required>
+                                <option value="" disabled selected>Select a responder...</option>
+                                @foreach($availableResponders as $ar)
+                                    <option value="{{ $ar->id }}">{{ $ar->name }} ({{ $ar->email }})</option>
+                                @endforeach
+                            </select>
+                            @if($availableResponders->isEmpty())
+                                <small class="text-danger mt-1 d-block">No available responders to add.</small>
+                            @endif
                         </div>
                         <div class="col-md-3">
-                            <button type="submit" class="btn btn-sg w-100"><i class="bi bi-plus-lg me-1"></i> Add</button>
+                            <button type="submit" class="btn btn-sg w-100" {{ $availableResponders->isEmpty() ? 'disabled' : '' }}><i class="bi bi-plus-lg me-1"></i> Add</button>
                         </div>
                     </div>
                 </form>

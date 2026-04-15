@@ -12,10 +12,10 @@ class Team extends Model
         'availability_status',
     ];
 
-    // One team can have many responders
-    public function responders()
+    // One team can have many members (users)
+    public function members()
     {
-        return $this->hasMany(Responder::class);
+        return $this->hasMany(User::class);
     }
 
     // A team can appear in many incident assignments

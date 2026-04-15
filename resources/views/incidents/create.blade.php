@@ -55,7 +55,7 @@
 
                         <!-- Map Location Picker -->
                         <div class="col-12">
-                            <label class="form-label fw-semibold"><i class="bi bi-geo-alt-fill text-danger me-1"></i> Incident Location — Click on the map <span class="text-danger">*</span></label>
+                            <label class="form-label fw-semibold"><i class="bi bi-geo-alt-fill text-danger me-1"></i> Incident Location — Search or click on the map <span class="text-danger">*</span></label>
                             <input type="text" name="location" id="locationText" class="form-control mb-2" value="{{ old('location') }}" placeholder="Address will auto-fill when you click the map" required>
                             <input type="hidden" name="latitude" id="latitude" value="{{ old('latitude') }}">
                             <input type="hidden" name="longitude" id="longitude" value="{{ old('longitude') }}">
@@ -100,6 +100,19 @@ document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('latitude').value) {
         marker = L.marker([lat, lng]).addTo(map);
         map.setView([lat, lng], 15);
+    }
+
+    if (typeof L.Control.Geocoder !== 'undefined') {
+        var geocoder = L.Control.geocoder({ defaultMarkGeocode: false, placeholder: 'Search for a place...' })
+            .on('markgeocode', function(e) {
+                if (marker) map.removeLayer(marker);
+                marker = L.marker(e.geocode.center).addTo(map);
+                map.setView(e.geocode.center, 16);
+                document.getElementById('latitude').value = e.geocode.center.lat.toFixed(7);
+                document.getElementById('longitude').value = e.geocode.center.lng.toFixed(7);
+                document.getElementById('locationText').value = e.geocode.name;
+            })
+            .addTo(map);
     }
 
     map.on('click', function(e) {

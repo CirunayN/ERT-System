@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Team;
-use App\Models\Responder;
+use App\Models\User;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 
@@ -11,7 +11,7 @@ class TeamController extends Controller
 {
     public function index()
     {
-        $teams = Team::withCount('responders', 'assignments')->get();
+        $teams = Team::withCount('members', 'assignments')->get();
         return view('teams.index', compact('teams'));
     }
 
@@ -36,8 +36,11 @@ class TeamController extends Controller
 
     public function edit(Team $team)
     {
-        $team->load('responders');
-        return view('teams.edit', compact('team'));
+        $team->load('members');
+        $availableResponders = User::where('role', 'responder')
+                                   ->whereNull('team_id')
+                                   ->get();
+        return view('teams.edit', compact('team', 'availableResponders'));
     }
 
     public function update(Request $request, Team $team)
@@ -64,24 +67,27 @@ class TeamController extends Controller
     public function addResponder(Request $request, Team $team)
     {
         $request->validate([
-            'name' => 'required|string|max:255',
-            'phone_number' => 'nullable|string|max:20',
+            'user_id' => 'required|exists:users,id',
         ]);
 
-        $team->responders()->create([
-            'name' => $request->name,
-            'phone_number' => $request->phone_number,
-        ]);
+        $user = User::findOrFail($request->user_id);
+        
+        // Ensure user is a responder and not already in a team
+        if ($user->role !== 'responder') {
+            return back()->with('error', 'Only responders can be assigned to a team.');
+        }
 
-        ActivityLog::log('responder_added', "Responder \"{$request->name}\" added to {$team->team_name}", 'bi-person-plus-fill', 'success');
+        $user->update(['team_id' => $team->id]);
+
+        ActivityLog::log('responder_added', "Responder \"{$user->name}\" added to {$team->team_name}", 'bi-person-plus-fill', 'success');
 
         return redirect()->route('teams.edit', $team)->with('success', 'Responder added!');
     }
 
-    public function removeResponder(Team $team, Responder $responder)
+    public function removeResponder(Team $team, User $member)
     {
-        ActivityLog::log('responder_removed', "Responder \"{$responder->name}\" removed from {$team->team_name}", 'bi-person-dash', 'warning');
-        $responder->delete();
+        ActivityLog::log('responder_removed', "Responder \"{$member->name}\" removed from {$team->team_name}", 'bi-person-dash', 'warning');
+        $member->update(['team_id' => null]);
         return redirect()->route('teams.edit', $team)->with('success', 'Responder removed!');
     }
 }

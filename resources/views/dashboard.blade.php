@@ -45,7 +45,7 @@
 <!-- Map + Activity Log Row -->
 <div class="row g-4 mb-4">
     <!-- Incident Map -->
-    <div class="col-lg-8">
+    <div class="{{ auth()->user()->isCitizen() ? 'col-12' : 'col-lg-8' }}">
         <div class="card shadow-sm h-100">
             <div class="card-header bg-white py-3">
                 <h6 class="fw-bold mb-0"><i class="bi bi-geo-alt-fill text-danger me-2"></i>Incident Map</h6>
@@ -56,6 +56,7 @@
         </div>
     </div>
 
+    @if(auth()->user()->isAdmin() || auth()->user()->isDispatcher())
     <!-- Activity Log -->
     <div class="col-lg-4">
         <div class="card shadow-sm h-100">
@@ -87,29 +88,72 @@
             </div>
         </div>
     </div>
+    @elseif(auth()->user()->isResponder())
+    <!-- Responder Notifications -->
+    <div class="col-lg-4">
+        <div class="card shadow-sm h-100 border-0" style="background: linear-gradient(135deg, #2d3748, #1a202c); color: #fff;">
+            <div class="card-header border-0 py-3" style="background: transparent;">
+                <h6 class="fw-bold mb-0 text-white"><i class="bi bi-bell-fill text-warning me-2"></i>Mission Notifications</h6>
+            </div>
+            <div class="card-body p-3" style="max-height: 400px; overflow-y: auto;">
+                @forelse($responderNotifications as $notif)
+                <div class="mb-3 pb-3 border-bottom border-secondary">
+                    <div class="d-flex gap-2 align-items-center mb-1">
+                        <i class="bi bi-circle-fill text-{{ $notif->color ?? 'warning' }}" style="font-size: 0.5rem;"></i>
+                        <small class="text-white-50 fw-semibold">{{ $notif->created_at->diffForHumans() }}</small>
+                    </div>
+                    <div class="ps-3 border-start border-{{ $notif->color ?? 'warning' }} ms-1">
+                        <span style="font-size: 0.9rem;">{{ $notif->description }}</span>
+                    </div>
+                </div>
+                @empty
+                <div class="text-center py-4 text-white-50">
+                    <i class="bi bi-shield-check fs-1 d-block mb-2"></i>
+                    No tactical alerts.
+                </div>
+                @endforelse
+            </div>
+        </div>
+    </div>
+    @endif
 </div>
 
 <!-- Recent Incidents -->
 <div class="card shadow-sm">
     <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
         <h6 class="fw-bold mb-0"><i class="bi bi-clock-history me-2"></i>Recent Incidents</h6>
-        <a href="{{ route('incidents.index') }}" class="btn btn-sm btn-outline-sg">View All</a>
+        <div class="d-flex gap-2 align-items-center">
+            <button class="btn btn-sm btn-outline-danger" onclick="filterCritical()"><i class="bi bi-exclamation-triangle-fill me-1"></i> Critical</button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="filterAll()"><i class="bi bi-list me-1"></i> All</button>
+            <a href="{{ route('incidents.index') }}" class="btn btn-sm btn-outline-sg">View All</a>
+        </div>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table class="table table-hover mb-0" id="incidentsTable">
                 <thead class="table-light">
-                    <tr><th>ID</th><th>Reporter</th><th>Type</th><th>Danger</th><th>Status</th><th>Date</th></tr>
+                    <tr><th>ID</th><th>Reporter</th><th>Type</th><th>Danger</th><th>Status</th><th>Date</th><th class="text-end">Action</th></tr>
                 </thead>
                 <tbody>
                     @forelse($recentIncidents as $incident)
-                    <tr style="cursor:pointer;" onclick="window.location='{{ route('incidents.show', $incident) }}'">
+                    <tr class="incident-row" data-danger="{{ $incident->danger_level }}" style="cursor:pointer;" onclick="window.location='{{ route('incidents.show', $incident) }}'">
                         <td class="fw-bold text-muted">#{{ $incident->id }}</td>
                         <td class="fw-semibold">{{ $incident->reporter_name }}</td>
                         <td>{{ $incident->emergency_type }}</td>
                         <td><span class="badge badge-{{ strtolower($incident->danger_level) }}">{{ $incident->danger_level }}</span></td>
                         <td><span class="badge badge-{{ strtolower(str_replace(' ', '-', $incident->status)) }}">{{ $incident->status }}</span></td>
                         <td class="text-muted">{{ $incident->created_at->format('M d, Y') }}</td>
+                        <td class="text-end">
+                            @if(auth()->user()->isResponder() && $incident->status === 'Pending')
+                            <form action="{{ route('incidents.updateStatus', $incident) }}" method="POST" onclick="event.stopPropagation();">
+                                @csrf
+                                <input type="hidden" name="status" value="In Progress">
+                                <button type="submit" class="btn btn-sm btn-sg"><i class="bi bi-box-arrow-in-right me-1"></i> Accept</button>
+                            </form>
+                            @else
+                                <a href="{{ route('incidents.show', $incident) }}" class="text-decoration-none p-1"><i class="bi bi-chevron-right text-muted"></i></a>
+                            @endif
+                        </td>
                     </tr>
                     @empty
                     <tr><td colspan="6" class="text-center py-4 text-muted">No incidents yet.</td></tr>
@@ -123,11 +167,31 @@
 
 @section('scripts')
 <script>
+    function filterCritical() {
+        document.querySelectorAll('.incident-row').forEach(row => {
+            row.style.display = row.dataset.danger === 'Critical' ? '' : 'none';
+        });
+    }
+
+    function filterAll() {
+        document.querySelectorAll('.incident-row').forEach(row => {
+            row.style.display = '';
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         var map = L.map('dashboardMap').setView([14.5995, 120.9842], 6);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
         }).addTo(map);
+
+        if (typeof L.Control.Geocoder !== 'undefined') {
+            L.Control.geocoder({ defaultMarkGeocode: false, placeholder: 'Search for a place...' })
+                .on('markgeocode', function(e) {
+                    map.setView(e.geocode.center, 15);
+                })
+                .addTo(map);
+        }
 
         var incidents = @json($mapIncidents);
         var bounds = [];

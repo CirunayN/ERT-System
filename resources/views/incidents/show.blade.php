@@ -119,6 +119,36 @@
         <div class="card shadow-sm">
             <div class="card-body">
                 <h6 class="fw-bold mb-3">Quick Actions</h6>
+                
+                @if(auth()->user()->isResponder() && auth()->user()->team && $incident->emergency_type === auth()->user()->team->team_type)
+                    <div class="d-grid gap-2 mb-3 pb-3 border-bottom">
+                        @if($incident->status === 'Pending')
+                        <form action="{{ route('incidents.updateStatus', $incident) }}" method="POST">
+                            @csrf <input type="hidden" name="status" value="In Progress">
+                            <button type="submit" class="btn btn-sg w-100"><i class="bi bi-box-arrow-in-right me-1"></i> Accept Incident</button>
+                        </form>
+                        @endif
+                        @if(in_array($incident->status, ['Pending', 'In Progress']))
+                        <form action="{{ route('incidents.updateStatus', $incident) }}" method="POST">
+                            @csrf <input type="hidden" name="status" value="En Route">
+                            <button type="submit" class="btn btn-primary w-100"><i class="bi bi-truck me-1"></i> En Route</button>
+                        </form>
+                        @endif
+                        @if($incident->status === 'En Route')
+                        <form action="{{ route('incidents.updateStatus', $incident) }}" method="POST">
+                            @csrf <input type="hidden" name="status" value="On Scene">
+                            <button type="submit" class="btn btn-warning text-dark w-100"><i class="bi bi-geo-alt-fill me-1"></i> On Scene</button>
+                        </form>
+                        @endif
+                        @if(in_array($incident->status, ['On Scene', 'In Progress', 'En Route']))
+                        <form action="{{ route('incidents.updateStatus', $incident) }}" method="POST" onsubmit="return confirm('Confirm mission completion?')">
+                            @csrf <input type="hidden" name="status" value="Completed">
+                            <button type="submit" class="btn btn-success w-100"><i class="bi bi-check-circle-fill me-1"></i> Completed</button>
+                        </form>
+                        @endif
+                    </div>
+                @endif
+
                 <div class="d-grid gap-2">
                     <a href="{{ route('incidents.edit', $incident) }}" class="btn btn-outline-sg btn-sm"><i class="bi bi-pencil me-1"></i> Edit Incident</a>
                     <a href="{{ route('incidents.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i> Back to List</a>

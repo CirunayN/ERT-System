@@ -16,6 +16,7 @@ class User extends Authenticatable
         'password',
         'role',
         'phone_number',
+        'team_id',
     ];
 
     protected $hidden = [
@@ -61,5 +62,10 @@ class User extends Authenticatable
     public function assignedIncidents()
     {
         return $this->hasMany(IncidentAssignment::class, 'assigned_by');
+    }
+
+    public function team()
+    {
+        return $this->belongsTo(Team::class);
     }
 }

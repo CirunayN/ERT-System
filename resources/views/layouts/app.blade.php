@@ -8,6 +8,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
     <style>
         :root {
             --sg-primary: #e67e22;
@@ -107,7 +108,9 @@
         /* ===== Status Badges ===== */
         .badge-pending { background-color: #d69e2e; }
         .badge-in-progress { background-color: #3182ce; }
-        .badge-resolved { background-color: #38a169; }
+        .badge-en-route { background-color: #0dcaf0; color: #000; }
+        .badge-on-scene { background-color: #e67e22; }
+        .badge-resolved, .badge-completed { background-color: #38a169; }
 
         /* ===== Cards ===== */
         .card { border: none; border-radius: 12px; }
@@ -165,7 +168,12 @@
                             <i class="bi bi-exclamation-triangle"></i> Incidents
                         </a>
                     </li>
-                    @if(auth()->user()->isAdmin())
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('incidents.history') ? 'active' : '' }}" href="{{ route('incidents.history') }}">
+                            <i class="bi bi-clock-history"></i> History
+                        </a>
+                    </li>
+                    @if(auth()->user()->isAdmin() || auth()->user()->isDispatcher())
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('teams.*') ? 'active' : '' }}" href="{{ route('teams.index') }}">
                             <i class="bi bi-people"></i> Teams
@@ -236,6 +244,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
     @yield('scripts')
 </body>
 </html>
