@@ -164,7 +164,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('incidents.*') ? 'active' : '' }}" href="{{ route('incidents.index') }}">
+                        <a class="nav-link {{ request()->routeIs('incidents.*') && !request()->routeIs('incidents.history') ? 'active' : '' }}" href="{{ route('incidents.index') }}">
                             <i class="bi bi-exclamation-triangle"></i> Incidents
                         </a>
                     </li>
@@ -201,6 +201,40 @@
                     @endif
                 </ul>
                 <div class="d-flex align-items-center gap-3">
+                    <!-- Notifications Dropdown -->
+                    <div class="dropdown">
+                        <a href="#" class="nav-link text-white position-relative" data-bs-toggle="dropdown">
+                            <i class="bi bi-bell-fill fs-5"></i>
+                            @if(auth()->user() && auth()->user()->unreadNotifications->count() > 0)
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem;">
+                                {{ auth()->user()->unreadNotifications->count() }}
+                            </span>
+                            @endif
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow" style="width: 320px; max-height: 400px; overflow-y: auto;">
+                            <li><h6 class="dropdown-header">Notifications</h6></li>
+                            @forelse(auth()->user()->unreadNotifications as $notification)
+                            <li>
+                                <a class="dropdown-item py-2 border-bottom" href="{{ $notification->data['url'] ?? '#' }}" onclick="event.preventDefault(); document.getElementById('mark-read-{{ $notification->id }}').submit();">
+                                    <div class="d-flex gap-2">
+                                        <div class="text-sg-primary mt-1"><i class="bi {{ $notification->data['icon'] ?? 'bi-bell' }}"></i></div>
+                                        <div>
+                                            <div class="fw-semibold" style="font-size: 0.85rem;">{{ $notification->data['title'] }}</div>
+                                            <div class="text-muted text-wrap" style="font-size: 0.8rem;">{{ $notification->data['message'] }}</div>
+                                            <div class="text-muted mt-1" style="font-size: 0.7rem;">{{ $notification->created_at->diffForHumans() }}</div>
+                                        </div>
+                                    </div>
+                                </a>
+                                <form id="mark-read-{{ $notification->id }}" action="{{ route('notifications.read', $notification->id) }}" method="POST" class="d-none">
+                                    @csrf
+                                </form>
+                            </li>
+                            @empty
+                            <li><span class="dropdown-item text-muted text-center py-3">No new notifications</span></li>
+                            @endforelse
+                        </ul>
+                    </div>
+
                     <span class="badge rounded-pill badge-{{ auth()->user()->role }} px-3 py-2">{{ ucfirst(auth()->user()->role) }}</span>
                     <div class="dropdown">
                         <a class="d-flex align-items-center gap-2 text-decoration-none dropdown-toggle user-dropdown" href="#" data-bs-toggle="dropdown">
@@ -209,6 +243,7 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><h6 class="dropdown-header">{{ auth()->user()->email }}</h6></li>
+                            <li><a class="dropdown-item" href="{{ route('profile.edit') }}"><i class="bi bi-person-circle me-2"></i>Profile</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <form action="{{ route('logout') }}" method="POST">
@@ -242,9 +277,92 @@
         @yield('content')
     </div>
 
+    <!-- Global Simulated Call Modal -->
+    <div class="modal fade" id="simulatedCallModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content border-0 text-white" style="background: var(--sg-navy); border-radius: 20px;">
+                <div class="modal-body text-center p-5">
+                    <div class="pulsating-circle mx-auto mb-4" style="width: 80px; height: 80px; background: rgba(56, 161, 105, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 0 rgba(56, 161, 105, 0.7); animation: pulse 1.5s infinite;">
+                        <div style="width: 60px; height: 60px; background: #38a169; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                            <i class="bi bi-telephone-fill fs-2 text-white"></i>
+                        </div>
+                    </div>
+                    <h5 id="callName" class="fw-bold mb-1">Dispatch Center</h5>
+                    <p id="callNumber" class="text-white-50 mb-4 small">Connecting...</p>
+                    <div id="callStatus" class="badge bg-success mb-4 px-3 py-2 rounded-pill">Ringing</div>
+                    <br>
+                    <button type="button" class="btn btn-danger rounded-circle p-3" onclick="endFakeCall()" data-bs-dismiss="modal">
+                        <i class="bi bi-telephone-x-fill fs-4"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <style>
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(56, 161, 105, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(56, 161, 105, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(56, 161, 105, 0); }
+        }
+    </style>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    
+    <script>
+        // Web Audio API Ringing Generator
+        let audioCtx, osc, lfo, gainNode;
+
+        function startFakeCall(name, number, isIncoming = false) {
+            document.getElementById('callName').innerText = name || 'Unknown Caller';
+            document.getElementById('callNumber').innerText = number || '0000-000-0000';
+            document.getElementById('callStatus').innerText = isIncoming ? 'Incoming Call...' : 'Ringing...';
+
+            var myModal = new bootstrap.Modal(document.getElementById('simulatedCallModal'));
+            myModal.show();
+
+            // Generate Ringing Sound
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            osc = audioCtx.createOscillator();
+            lfo = audioCtx.createOscillator();
+            gainNode = audioCtx.createGain();
+
+            // Dual tone standard ring
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, audioCtx.currentTime); // 440 Hz
+            lfo.type = 'square';
+            lfo.frequency.setValueAtTime(0.5, audioCtx.currentTime); // 2s on/off cycle
+
+            lfo.connect(gainNode.gain);
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            // Start sounds
+            osc.start();
+            lfo.start();
+
+            // Auto pickup simulation
+            setTimeout(() => {
+                if (audioCtx && audioCtx.state === 'running') {
+                    document.getElementById('callStatus').innerText = 'Connected 00:01';
+                    document.getElementById('callStatus').classList.replace('bg-success', 'bg-primary');
+                    stopRinging();
+                }
+            }, 3500);
+        }
+
+        function stopRinging() {
+            if (osc) { osc.stop(); osc.disconnect(); }
+            if (lfo) { lfo.stop(); lfo.disconnect(); }
+            if (audioCtx) { audioCtx.close(); audioCtx = null; }
+        }
+
+        function endFakeCall() {
+            stopRinging();
+            document.getElementById('callStatus').classList.replace('bg-primary', 'bg-success');
+        }
+    </script>
     @yield('scripts')
 </body>
 </html>

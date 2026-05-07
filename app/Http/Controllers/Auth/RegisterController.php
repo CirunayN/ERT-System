@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use App\Notifications\SystemAlert;
 
 class RegisterController extends Controller
 {
@@ -31,6 +32,12 @@ class RegisterController extends Controller
         ]);
 
         Auth::login($user);
+
+        // Notify Admins
+        $admins = User::where('role', 'admin')->get();
+        foreach ($admins as $admin) {
+            $admin->notify(new SystemAlert('New User Registration', "{$user->name} has joined the system.", route('admin.users'), 'bi-person-plus'));
+        }
 
         return redirect()->route('dashboard');
     }

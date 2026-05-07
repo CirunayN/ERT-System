@@ -29,10 +29,28 @@ Route::middleware('auth')->group(function () {
     // Incidents CRUD
     Route::get('/history', [IncidentController::class, 'history'])->name('incidents.history');
     Route::resource('incidents', IncidentController::class);
+    Route::get('/incidents/{incident}/manage', [IncidentController::class, 'manage'])
+        ->name('incidents.manage')->middleware('role:responder,dispatcher,admin');
     Route::post('/incidents/{incident}/assign', [IncidentController::class, 'assignTeam'])
         ->name('incidents.assign')->middleware('role:dispatcher,admin');
     Route::post('/incidents/{incident}/status', [IncidentController::class, 'updateStatus'])
         ->name('incidents.updateStatus');
+    Route::post('/incidents/{incident}/verify', [IncidentController::class, 'verify'])
+        ->name('incidents.verify')->middleware('role:dispatcher,admin');
+
+    // Profile
+    Route::get('/profile', [App\Http\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/password', [App\Http\Controllers\Auth\PasswordController::class, 'update'])->name('password.update');
+
+    // Notifications
+    Route::post('/notifications/{id}/read', function ($id) {
+        if ($notification = auth()->user()->notifications()->find($id)) {
+            $notification->markAsRead();
+            return redirect($notification->data['url'] ?? url()->previous());
+        }
+        return back();
+    })->name('notifications.read');
 
     // Team Management (Admin and Dispatcher)
     Route::middleware('role:admin,dispatcher')->group(function () {

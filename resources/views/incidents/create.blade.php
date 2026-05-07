@@ -21,7 +21,7 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Contact Number</label>
-                            <input type="text" name="contact_number" class="form-control" value="{{ old('contact_number') }}" placeholder="09XX-XXX-XXXX">
+                            <input type="text" name="contact_number" class="form-control" value="{{ old('contact_number', auth()->user()->phone_number) }}" placeholder="09XX-XXX-XXXX">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Incident Type <span class="text-danger">*</span></label>
@@ -53,7 +53,7 @@
                             </div>
                         </div>
 
-                        <!-- Map Location Picker -->
+                        <!-- Map loc -->
                         <div class="col-12">
                             <label class="form-label fw-semibold"><i class="bi bi-geo-alt-fill text-danger me-1"></i> Incident Location — Search or click on the map <span class="text-danger">*</span></label>
                             <input type="text" name="location" id="locationText" class="form-control mb-2" value="{{ old('location') }}" placeholder="Address will auto-fill when you click the map" required>
@@ -69,7 +69,10 @@
                     </div>
                     <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
                         <a href="{{ route('incidents.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Cancel</a>
-                        <button type="submit" class="btn btn-sg px-4"><i class="bi bi-check-lg me-1"></i> Submit Report</button>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-dark px-3" onclick="startFakeCall('Dispatch Center', '911', true)"><i class="bi-telephone-fill me-1"></i> Emergency Call</button>
+                            <button type="submit" class="btn btn-sg px-4"><i class="bi bi-check-lg me-1"></i> Submit Report</button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -90,9 +93,17 @@ function previewImg(e) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    var lat = document.getElementById('latitude').value || 14.5995;
-    var lng = document.getElementById('longitude').value || 120.9842;
-    var map = L.map('locationMap').setView([lat, lng], 6);
+    var lat = document.getElementById('latitude').value || 7.1907;
+    var lng = document.getElementById('longitude').value || 125.4553;
+    var davaoBounds = L.latLngBounds([
+        [6.8000, 125.1000],
+        [7.5000, 125.7000]
+    ]);
+    var map = L.map('locationMap', {
+        maxBounds: davaoBounds,
+        maxBoundsViscosity: 1.0,
+        minZoom: 10
+    }).setView([lat, lng], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
 
     var marker = null;
@@ -121,7 +132,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('latitude').value = e.latlng.lat.toFixed(7);
         document.getElementById('longitude').value = e.latlng.lng.toFixed(7);
 
-        // Reverse geocode
+        //mag return ug address base sa gi click
         fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + e.latlng.lat + '&lon=' + e.latlng.lng)
             .then(r => r.json())
             .then(data => {

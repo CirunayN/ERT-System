@@ -24,10 +24,11 @@ class AnalyticsController extends Controller
         $byDanger = Incident::selectRaw('danger_level, COUNT(*) as count')
             ->groupBy('danger_level')->pluck('count', 'danger_level');
 
-        // Incidents over the last 7 days
+        // Incidents over time
+        $days = (int) request('days', 7);
         $dailyCounts = [];
         $dailyLabels = [];
-        for ($i = 6; $i >= 0; $i--) {
+        for ($i = $days - 1; $i >= 0; $i--) {
             $date = now()->subDays($i);
             $dailyLabels[] = $date->format('M d');
             $dailyCounts[] = Incident::whereDate('created_at', $date->toDateString())->count();
@@ -43,7 +44,7 @@ class AnalyticsController extends Controller
 
         return view('analytics.index', compact(
             'byType', 'byStatus', 'byDanger', 'dailyCounts', 'dailyLabels',
-            'totalIncidents', 'totalTeams', 'totalAssignments', 'totalUsers', 'resolutionRate'
+            'totalIncidents', 'totalTeams', 'totalAssignments', 'totalUsers', 'resolutionRate', 'days'
         ));
     }
 }

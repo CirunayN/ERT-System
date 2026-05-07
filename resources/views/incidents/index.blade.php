@@ -7,19 +7,47 @@
         <h4 class="fw-bold mb-1">Active Incident Board</h4>
         <p class="text-muted mb-0">Track all current ongoing emergencies and tactical deployments</p>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 align-items-center">
+        <form method="GET" action="{{ route('incidents.index') }}" class="d-inline-block me-2">
+            <select name="danger_level" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="All" {{ request('danger_level') == 'All' ? 'selected' : '' }}>All Levels</option>
+                <option value="Critical" {{ request('danger_level') == 'Critical' ? 'selected' : '' }}>Critical</option>
+                <option value="High" {{ request('danger_level') == 'High' ? 'selected' : '' }}>High</option>
+                <option value="Medium" {{ request('danger_level') == 'Medium' ? 'selected' : '' }}>Medium</option>
+                <option value="Low" {{ request('danger_level') == 'Low' ? 'selected' : '' }}>Low</option>
+            </select>
+        </form>
         <a href="{{ route('incidents.history') }}" class="btn btn-outline-secondary"><i class="bi bi-clock-history me-1"></i> History</a>
         <a href="{{ route('incidents.create') }}" class="btn btn-sg"><i class="bi bi-plus-lg me-1"></i> Report Incident</a>
     </div>
 </div>
 
 <div class="row g-3 mb-4">
-    <div class="col-md-3 col-6"><div class="stat-card critical"><div class="stat-label">Critical</div><div class="stat-number">{{ $criticalCount }}</div><div class="stat-icon"><i class="bi bi-exclamation-circle"></i></div></div></div>
-    <div class="col-md-3 col-6"><div class="stat-card pending"><div class="stat-label">Pending</div><div class="stat-number">{{ $pendingCount }}</div><div class="stat-icon"><i class="bi bi-clock"></i></div></div></div>
-    <div class="col-md-3 col-6"><div class="stat-card in-progress"><div class="stat-label">In Progress</div><div class="stat-number">{{ $inProgressCount }}</div><div class="stat-icon"><i class="bi bi-arrow-repeat"></i></div></div></div>
+    <!-- Critical -->
     <div class="col-md-3 col-6">
-        <div class="stat-card" style="background: linear-gradient(135deg, #1a202c, #2d3748);">
-            <div class="stat-label">Completed</div><div class="stat-number">{{ $resolvedCount }}</div><div class="stat-icon"><i class="bi bi-shield-fill-check"></i></div>
+        <div class="stat-card critical" onclick="window.location.href='{{ route('incidents.index', ['danger_level' => 'Critical']) }}'" style="cursor: pointer;">
+            <div class="stat-label">Critical</div><div class="stat-number">{{ $criticalCount }}</div><div class="stat-icon"><i class="bi bi-exclamation-circle"></i></div>
+        </div>
+    </div>
+
+    <!-- Pending -->
+    <div class="col-md-3 col-6">
+        <div class="stat-card pending" onclick="window.location.href='{{ route('incidents.index', ['status' => 'Pending']) }}'" style="cursor: pointer;">
+            <div class="stat-label">Pending</div><div class="stat-number">{{ $pendingCount }}</div><div class="stat-icon"><i class="bi bi-clock"></i></div>
+        </div>
+    </div>
+
+    <!-- In Progress -->
+    <div class="col-md-3 col-6">
+        <div class="stat-card in-progress" onclick="window.location.href='{{ route('incidents.index', ['status' => 'In Progress']) }}'" style="cursor: pointer;">
+            <div class="stat-label">In Progress</div><div class="stat-number">{{ $inProgressCount }}</div><div class="stat-icon"><i class="bi bi-arrow-repeat"></i></div>
+        </div>
+    </div>
+
+    <!-- Completed -->
+    <div class="col-md-3 col-6">
+        <div class="stat-card" style="background: linear-gradient(135deg, #1a202c, #2d3748); cursor: pointer;" onclick="window.location.href='{{ route('incidents.history') }}'">
+            <div class="stat-label text-white">Completed</div><div class="stat-number text-white">{{ $resolvedCount }}</div><div class="stat-icon text-white"><i class="bi bi-shield-fill-check"></i></div>
         </div>
     </div>
 </div>
@@ -64,12 +92,12 @@
                     @if(auth()->user()->isResponder() && $inc->status === 'Pending')
                         <form action="{{ route('incidents.updateStatus', $inc) }}" method="POST">
                             @csrf <input type="hidden" name="status" value="In Progress">
-                            <button type="submit" class="btn btn-sg w-100 btn-sm"><i class="bi bi-box-arrow-in-right me-1"></i> Accept Mission</button>
+                            <button type="submit" class="btn btn-sg w-100 btn-sm"><i class="bi bi-box-arrow-in-right me-1"></i> Accept</button>
                         </form>
                     @endif
                     <div class="d-flex gap-1">
                         <a href="{{ route('incidents.show', $inc) }}" class="btn btn-outline-dark btn-sm flex-fill"><i class="bi bi-eye"></i> View</a>
-                        @if(!auth()->user()->isDispatcher() && !auth()->user()->isCitizen())
+                        @if(auth()->user()->isAdmin())
                             <form action="{{ route('incidents.destroy', $inc) }}" method="POST" class="d-inline" onsubmit="return confirm('Confirm delete?')">
                                 @csrf @method('DELETE')
                                 <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>

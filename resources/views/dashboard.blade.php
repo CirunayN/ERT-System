@@ -12,29 +12,36 @@
 
 <!-- Stat Cards -->
 <div class="row g-3 mb-4">
+    <!-- Total Incidents -->
     <div class="col-md-3 col-6">
-        <div class="stat-card total">
+        <div class="stat-card total" onclick="window.location.href='{{ route('incidents.index') }}'" style="cursor: pointer;">
             <div class="stat-label">Total Incidents</div>
             <div class="stat-number">{{ $totalIncidents }}</div>
             <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
         </div>
     </div>
+    
+    <!-- Pending -->
     <div class="col-md-3 col-6">
-        <div class="stat-card pending">
+        <div class="stat-card pending" onclick="window.location.href='{{ route('incidents.index', ['status' => 'Pending']) }}'" style="cursor: pointer;">
             <div class="stat-label">Pending</div>
             <div class="stat-number">{{ $pendingCount }}</div>
             <div class="stat-icon"><i class="bi bi-clock"></i></div>
         </div>
     </div>
+    
+    <!-- Critical -->
     <div class="col-md-3 col-6">
-        <div class="stat-card critical">
+        <div class="stat-card critical" onclick="window.location.href='{{ route('incidents.index', ['danger_level' => 'Critical']) }}'" style="cursor: pointer;">
             <div class="stat-label">Critical</div>
             <div class="stat-number">{{ $criticalCount }}</div>
             <div class="stat-icon"><i class="bi bi-exclamation-circle"></i></div>
         </div>
     </div>
+    
+    <!-- Resolved -->
     <div class="col-md-3 col-6">
-        <div class="stat-card resolved">
+        <div class="stat-card resolved" onclick="window.location.href='{{ route('incidents.history') }}'" style="cursor: pointer;">
             <div class="stat-label">Resolved</div>
             <div class="stat-number">{{ $resolvedCount }}</div>
             <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
@@ -93,7 +100,7 @@
     <div class="col-lg-4">
         <div class="card shadow-sm h-100 border-0" style="background: linear-gradient(135deg, #2d3748, #1a202c); color: #fff;">
             <div class="card-header border-0 py-3" style="background: transparent;">
-                <h6 class="fw-bold mb-0 text-white"><i class="bi bi-bell-fill text-warning me-2"></i>Mission Notifications</h6>
+                <h6 class="fw-bold mb-0 text-white"><i class="bi bi-bell-fill text-warning me-2"></i>Notifications</h6>
             </div>
             <div class="card-body p-3" style="max-height: 400px; overflow-y: auto;">
                 @forelse($responderNotifications as $notif)
@@ -123,8 +130,13 @@
     <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
         <h6 class="fw-bold mb-0"><i class="bi bi-clock-history me-2"></i>Recent Incidents</h6>
         <div class="d-flex gap-2 align-items-center">
-            <button class="btn btn-sm btn-outline-danger" onclick="filterCritical()"><i class="bi bi-exclamation-triangle-fill me-1"></i> Critical</button>
-            <button class="btn btn-sm btn-outline-secondary" onclick="filterAll()"><i class="bi bi-list me-1"></i> All</button>
+            <select class="form-select form-select-sm d-inline-block w-auto" onchange="filterDanger(this.value)">
+                <option value="All">All Levels</option>
+                <option value="Critical">Critical</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+            </select>
             <a href="{{ route('incidents.index') }}" class="btn btn-sm btn-outline-sg">View All</a>
         </div>
     </div>
@@ -167,20 +179,26 @@
 
 @section('scripts')
 <script>
-    function filterCritical() {
+    function filterDanger(level) {
         document.querySelectorAll('.incident-row').forEach(row => {
-            row.style.display = row.dataset.danger === 'Critical' ? '' : 'none';
-        });
-    }
-
-    function filterAll() {
-        document.querySelectorAll('.incident-row').forEach(row => {
-            row.style.display = '';
+            if (level === 'All') {
+                row.style.display = '';
+            } else {
+                row.style.display = row.dataset.danger === level ? '' : 'none';
+            }
         });
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        var map = L.map('dashboardMap').setView([14.5995, 120.9842], 6);
+        var davaoBounds = L.latLngBounds([
+            [6.8000, 125.1000],
+            [7.5000, 125.7000]
+        ]);
+        var map = L.map('dashboardMap', {
+            maxBounds: davaoBounds,
+            maxBoundsViscosity: 1.0,
+            minZoom: 10
+        }).setView([7.1907, 125.4553], 12);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
         }).addTo(map);

@@ -4,12 +4,17 @@
 @section('content')
 <div class="row g-4">
     <div class="col-lg-8">
-        <!-- Incident Details -->
+        <!-- Mag show ug Incident Details -->
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                <h5 class="fw-bold mb-0">{{ $incident->emergency_type }} Incident</h5>
-                @php $statusClass = match($incident->status) { 'Pending' => 'badge-pending', 'In Progress' => 'badge-in-progress', 'Resolved' => 'badge-resolved', default => 'bg-secondary' }; @endphp
-                <span class="badge {{ $statusClass }} px-3 py-2">{{ $incident->status }}</span>
+                <h5 class="fw-bold mb-0">
+                    {{ $incident->emergency_type }} Incident
+                    @if($incident->is_verified)
+                        <i class="bi bi-patch-check-fill text-success ms-1" title="Verified Incident"></i>
+                    @endif
+                </h5>
+                @php $statusClass = match($incident->status) { 'Pending' => 'badge bg-warning text-dark', 'In Progress' => 'badge bg-primary', 'Completed' => 'badge bg-success', 'En Route' => 'badge bg-info text-dark', 'On Scene' => 'badge bg-warning text-dark', default => 'badge bg-secondary' }; @endphp
+                <span class="{{ $statusClass }} px-3 py-2">{{ $incident->status }}</span>
             </div>
             <div class="card-body">
                 @if($incident->image_path)
@@ -20,7 +25,14 @@
                 <div class="row g-3 mb-4">
                     <div class="col-md-6">
                         <label class="text-muted small fw-semibold">Reporter</label>
-                        <p class="fw-bold mb-0">{{ $incident->reporter_name }}</p>
+                        <p class="fw-bold mb-0">
+                            {{ $incident->reporter_name }}
+                            @if($incident->contact_number)
+                            <button type="button" class="btn btn-sm btn-outline-success ms-2 rounded-pill py-0 px-2" onclick="startFakeCall('{{ $incident->reporter_name }}', '{{ $incident->contact_number }}')">
+                                <i class="bi bi-telephone"></i> Call
+                            </button>
+                            @endif
+                        </p>
                         @if($incident->contact_number)<small class="text-muted">{{ $incident->contact_number }}</small>@endif
                     </div>
                     <div class="col-md-6">
@@ -96,29 +108,17 @@
             </div>
         </div>
 
-        @if(auth()->user()->isAdmin() || auth()->user()->isDispatcher())
-        <div class="card shadow-sm mb-4">
-            <div class="card-body">
-                <h6 class="fw-bold mb-3"><i class="bi bi-send me-1" style="color:var(--sg-primary);"></i> Dispatch Team</h6>
-                <form action="{{ route('incidents.assign', $incident) }}" method="POST">
-                    @csrf
-                    <div class="mb-3">
-                        <select name="team_id" class="form-select" required>
-                            <option value="">-- Choose Team --</option>
-                            @foreach($teams as $team)
-                                <option value="{{ $team->id }}">{{ $team->team_name }} ({{ $team->team_type }})</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-sg w-100"><i class="bi bi-send me-1"></i> Deploy Team</button>
-                </form>
-            </div>
-        </div>
-        @endif
 
         <div class="card shadow-sm">
             <div class="card-body">
                 <h6 class="fw-bold mb-3">Quick Actions</h6>
+                
+                @if(!$incident->is_verified && (auth()->user()->isAdmin() || auth()->user()->isDispatcher()))
+                <form action="{{ route('incidents.verify', $incident) }}" method="POST" class="mb-3 border-bottom pb-3">
+                    @csrf
+                    <button type="submit" class="btn btn-outline-success w-100"><i class="bi bi-shield-check me-1"></i> Verify Legitimacy</button>
+                </form>
+                @endif
                 
                 @if(auth()->user()->isResponder() && auth()->user()->team && $incident->emergency_type === auth()->user()->team->team_type)
                     <div class="d-grid gap-2 mb-3 pb-3 border-bottom">
@@ -141,7 +141,7 @@
                         </form>
                         @endif
                         @if(in_array($incident->status, ['On Scene', 'In Progress', 'En Route']))
-                        <form action="{{ route('incidents.updateStatus', $incident) }}" method="POST" onsubmit="return confirm('Confirm mission completion?')">
+                        <form action="{{ route('incidents.updateStatus', $incident) }}" method="POST" onsubmit="return confirm('Confirm completion?')">
                             @csrf <input type="hidden" name="status" value="Completed">
                             <button type="submit" class="btn btn-success w-100"><i class="bi bi-check-circle-fill me-1"></i> Completed</button>
                         </form>
@@ -150,7 +150,11 @@
                 @endif
 
                 <div class="d-grid gap-2">
+                    @if(auth()->user()->isAdmin() || auth()->user()->isDispatcher() || auth()->user()->isResponder())
+                    <a href="{{ route('incidents.manage', $incident) }}" class="btn btn-outline-sg btn-sm"><i class="bi bi-sliders me-1"></i> Manage Incident</a>
+                    @else
                     <a href="{{ route('incidents.edit', $incident) }}" class="btn btn-outline-sg btn-sm"><i class="bi bi-pencil me-1"></i> Edit Incident</a>
+                    @endif
                     <a href="{{ route('incidents.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i> Back to List</a>
                 </div>
             </div>
@@ -163,7 +167,15 @@
 @if($incident->latitude && $incident->longitude)
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var map = L.map('showMap').setView([{{ $incident->latitude }}, {{ $incident->longitude }}], 15);
+    var davaoBounds = L.latLngBounds([
+        [6.8000, 125.1000],
+        [7.5000, 125.7000]
+    ]);
+    var map = L.map('showMap', {
+        maxBounds: davaoBounds,
+        maxBoundsViscosity: 1.0,
+        minZoom: 10
+    }).setView([{{ $incident->latitude }}, {{ $incident->longitude }}], 15);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
     L.marker([{{ $incident->latitude }}, {{ $incident->longitude }}]).addTo(map)
         .bindPopup('<strong>{{ $incident->emergency_type }}</strong><br>{{ $incident->location }}').openPopup();

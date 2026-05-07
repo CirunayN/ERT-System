@@ -7,7 +7,17 @@
         <h4 class="fw-bold mb-1">Response Teams</h4>
         <p class="text-muted mb-0">Manage emergency response teams and assign responders</p>
     </div>
-    <a href="{{ route('teams.create') }}" class="btn btn-sg"><i class="bi bi-plus-lg me-1"></i> Create Team</a>
+    <div class="d-flex gap-2 align-items-center">
+        <form method="GET" action="{{ route('teams.index') }}" class="d-inline-block me-2">
+            <select name="availability" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="All" {{ request('availability') == 'All' ? 'selected' : '' }}>All Status</option>
+                <option value="Available" {{ request('availability') == 'Available' ? 'selected' : '' }}>Available</option>
+                <option value="Deployed" {{ request('availability') == 'Deployed' ? 'selected' : '' }}>Deployed</option>
+                <option value="Unavailable" {{ request('availability') == 'Unavailable' ? 'selected' : '' }}>Unavailable</option>
+            </select>
+        </form>
+        <a href="{{ route('teams.create') }}" class="btn btn-sg"><i class="bi bi-plus-lg me-1"></i> Create Team</a>
+    </div>
 </div>
 
 <div class="row g-4">

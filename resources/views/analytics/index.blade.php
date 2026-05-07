@@ -6,6 +6,17 @@
     <h4 class="fw-bold mb-1">Reports & Analytics</h4>
     <p class="text-muted mb-0">Statistical reports about incidents and system performance</p>
 </div>
+<div class="d-flex justify-content-end mb-3">
+    <form method="GET" action="{{ route('analytics') }}" class="d-inline-flex align-items-center gap-2">
+        <span class="text-muted small fw-semibold">Timeframe:</span>
+        <select name="days" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+            <option value="7" {{ $days == 7 ? 'selected' : '' }}>Last 7 Days</option>
+            <option value="14" {{ $days == 14 ? 'selected' : '' }}>Last 14 Days</option>
+            <option value="30" {{ $days == 30 ? 'selected' : '' }}>Last 30 Days</option>
+            <option value="90" {{ $days == 90 ? 'selected' : '' }}>Last 3 Months</option>
+        </select>
+    </form>
+</div>
 
 <!-- Summary Cards -->
 <div class="row g-3 mb-4">
@@ -27,7 +38,7 @@
 <div class="row g-4 mb-4">
     <div class="col-lg-8">
         <div class="card shadow-sm">
-            <div class="card-header bg-white py-3"><h6 class="fw-bold mb-0"><i class="bi bi-graph-up me-2"></i>Incidents Over Last 7 Days</h6></div>
+            <div class="card-header bg-white py-3"><h6 class="fw-bold mb-0"><i class="bi bi-graph-up me-2"></i>Incidents Over Last {{ $days }} Days</h6></div>
             <div class="card-body"><canvas id="lineChart" height="120"></canvas></div>
         </div>
     </div>

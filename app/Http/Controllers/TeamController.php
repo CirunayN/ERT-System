@@ -11,7 +11,13 @@ class TeamController extends Controller
 {
     public function index()
     {
-        $teams = Team::withCount('members', 'assignments')->get();
+        $query = Team::withCount('members', 'assignments');
+
+        if (request()->has('availability') && request('availability') !== 'All' && request('availability') !== '') {
+            $query->where('availability_status', request('availability'));
+        }
+
+        $teams = $query->get();
         return view('teams.index', compact('teams'));
     }
 
@@ -72,7 +78,7 @@ class TeamController extends Controller
 
         $user = User::findOrFail($request->user_id);
         
-        // Ensure user is a responder and not already in a team
+        //Nag Check kung ang user is a responder and wala pa ka sulod ug laing team
         if ($user->role !== 'responder') {
             return back()->with('error', 'Only responders can be assigned to a team.');
         }

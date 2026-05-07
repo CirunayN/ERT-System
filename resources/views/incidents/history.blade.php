@@ -4,10 +4,16 @@
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
     <div>
-        <h4 class="fw-bold mb-1"><i class="bi bi-clock-history me-2"></i>Mission History</h4>
+        <h4 class="fw-bold mb-1"><i class="bi bi-clock-history me-2"></i>History</h4>
         <p class="text-muted mb-0">Archives of resolved and successfully completed incidents</p>
     </div>
-    <a href="{{ route('incidents.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Active Missions</a>
+    <div class="d-flex gap-2 align-items-center">
+        <form method="GET" action="{{ route('incidents.history') }}" class="d-inline-flex gap-2 me-2">
+            <input type="date" name="date_from" class="form-control form-control-sm" value="{{ request('date_from') }}" onchange="this.form.submit()" title="Start Date">
+            <input type="date" name="date_to" class="form-control form-control-sm" value="{{ request('date_to') }}" onchange="this.form.submit()" title="End Date">
+        </form>
+        <a href="{{ route('incidents.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Active Incidents</a>
+    </div>
 </div>
 
 <div class="row g-4">

@@ -20,7 +20,6 @@ class DashboardController extends Controller
             $query = Incident::query();
         }
 
-        // Active query filters out completed incidents
         $activeQuery = clone $query;
         $activeQuery->where('status', '!=', 'Completed');
 
@@ -31,10 +30,10 @@ class DashboardController extends Controller
         $inProgressCount = (clone $activeQuery)->where('status', 'In Progress')->count();
         $recentIncidents = (clone $activeQuery)->latest()->take(5)->get();
 
-        // Map markers — incidents with coordinates
+        //Cords sa mga incident na naa sa map
         $mapIncidents = (clone $activeQuery)->whereNotNull('latitude')->whereNotNull('longitude')->get();
 
-        // Activity logs - hide for citizens and responders
+        // Mag pakuha ug activity logs depende sa role
         $activityLogs = collect();
         $responderNotifications = collect();
         

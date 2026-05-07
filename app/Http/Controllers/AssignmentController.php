@@ -28,7 +28,7 @@ class AssignmentController extends Controller
         $incident = Incident::findOrFail($request->incident_id);
         $team = Team::findOrFail($request->team_id);
 
-        // Mark old active assignments as reassigned
+        // Gi update and old assigned teams to 'reassigned'
         $incident->assignments()->where('status', 'active')->update(['status' => 'reassigned']);
 
         IncidentAssignment::create([
