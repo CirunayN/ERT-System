@@ -181,6 +181,17 @@ class IncidentController extends Controller
             $incident->update(['status' => $validated['status']]);
         }
 
+        // Fix: Ensure teams are released if status is changed to Completed from the edit form
+        if ($incident->status === 'Completed' || $incident->status === 'Resolved') {
+            $activeAssignments = $incident->assignments()->where('status', 'active')->get();
+            foreach($activeAssignments as $assignment) {
+                $assignment->update(['status' => 'completed']);
+                if ($assignment->team) {
+                    $assignment->team->update(['availability_status' => 'Available']);
+                }
+            }
+        }
+
         ActivityLog::log('incident_updated', "Incident #{$incident->id} updated at {$incident->location}", 'bi-pencil-square', 'info');
 
         return redirect()->route('incidents.index')->with('success', 'Incident updated successfully!');

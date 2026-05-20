@@ -363,6 +363,42 @@
             document.getElementById('callStatus').classList.replace('bg-primary', 'bg-success');
         }
     </script>
+    
+    <!-- SweetAlert2 for Clean Popups -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Find all forms that currently use the ugly browser confirm()
+            const deleteForms = document.querySelectorAll('form[onsubmit*="confirm"]');
+            deleteForms.forEach(form => {
+                form.removeAttribute('onsubmit'); // Remove the default browser popup
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault(); // Stop immediate submission
+                    
+                    Swal.fire({
+                        title: 'Delete Record?',
+                        text: "Are you sure you want to permanently delete this? This action cannot be undone.",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#e53e3e', // Red color for danger
+                        cancelButtonColor: '#a0aec0', // Gray for cancel
+                        confirmButtonText: '<i class="bi bi-trash"></i> Yes, delete it!',
+                        cancelButtonText: 'Cancel',
+                        background: '#1a202c',
+                        color: '#fff',
+                        customClass: {
+                            popup: 'rounded-4 border border-secondary'
+                        }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            form.submit(); // Submit if they click Yes
+                        }
+                    });
+                });
+            });
+        });
+    </script>
+
     @yield('scripts')
 </body>
 </html>
